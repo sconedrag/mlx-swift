@@ -171,6 +171,35 @@ public func loadArraysAndMetadata(url: URL, stream: StreamOrDevice = .cpu) throw
     }
 }
 
+/// Load dictionary of ``MLXArray`` from a `safetensors` file using memory-mapped I/O.
+/// Weight pages are demand-paged from NVMe by the OS, reducing peak RSS.
+///
+/// - Parameters:
+///     - url: URL of file to load
+///     - stream: stream or device to evaluate on
+///
+/// ### See Also
+/// - ``loadArrays(url:stream:)``
+public func loadArraysMmap(url: URL, stream: StreamOrDevice = .cpu) throws -> [String: MLXArray] {
+    precondition(url.isFileURL)
+    let path = url.path(percentEncoded: false)
+
+    guard url.pathExtension == "safetensors" else {
+        throw LoadSaveError.unknownExtension(url.pathExtension)
+    }
+
+    var r0 = mlx_map_string_to_array_new()
+    var r1 = mlx_map_string_to_string_new()
+    defer { mlx_map_string_to_array_free(r0) }
+    defer { mlx_map_string_to_string_free(r1) }
+
+    _ = try withError {
+        mlx_load_safetensors_mmap(&r0, &r1, path.cString(using: .utf8), stream.ctx)
+    }
+
+    return mlx_map_array_values(r0)
+}
+
 // MARK: - Memory I/O
 
 private class IOState {
