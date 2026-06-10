@@ -43,6 +43,12 @@ int mlx_load_safetensors(
     mlx_map_string_to_string* res_1,
     const char* file,
     const mlx_stream s);
+// W4: C binding for the memory-mapped safetensors loader.
+int mlx_load_safetensors_mmap(
+    mlx_map_string_to_array* res_0,
+    mlx_map_string_to_string* res_1,
+    const char* path,
+    const mlx_stream s);
 int mlx_save_writer(mlx_io_writer out_stream, const mlx_array a);
 int mlx_save(const char* file, const mlx_array a);
 int mlx_save_safetensors_writer(

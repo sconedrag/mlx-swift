@@ -139,6 +139,32 @@ public func loadArrays(url: URL, stream: StreamOrDevice = .cpu) throws -> [Strin
     }
 }
 
+/// W4 (mmap weight serving): like ``loadArrays(url:stream:)`` but memory-maps the
+/// safetensors file so weight tensors are served from file-backed (clean) pages
+/// via the Load primitive's zero-copy path (``MmapFileReader`` + the allocator's
+/// `malloc_nocopy`). Keeps dirty memory — and iOS jetsam pressure — low for large
+/// weight files. Apple platforms only. (Ported from sconedrag/mlx-swift, Study 12.)
+public func loadArraysMmap(url: URL, stream: StreamOrDevice = .cpu) throws -> [String: MLXArray] {
+    precondition(url.isFileURL)
+    let path = url.path(percentEncoded: false)
+
+    switch url.pathExtension {
+    case "safetensors":
+        var r0 = mlx_map_string_to_array_new()
+        var r1 = mlx_map_string_to_string_new()
+        defer { mlx_map_string_to_array_free(r0) }
+        defer { mlx_map_string_to_string_free(r1) }
+
+        _ = try withError {
+            mlx_load_safetensors_mmap(&r0, &r1, path.cString(using: .utf8), stream.ctx)
+        }
+
+        return mlx_map_array_values(r0)
+    default:
+        throw LoadSaveError.unknownExtension(url.pathExtension)
+    }
+}
+
 /// Load dictionary of ``MLXArray`` and metadata `[String:String]` from a `safetensors` file.
 ///
 /// - Parameters:
